@@ -1,0 +1,31 @@
+<dom-module id="preloader-element">
+    <template>
+        <div class$="{{ preloaderSize(size) }}">
+            <div class$="{{ preloaderColor(color) }}">
+                <div class="circle-clipper left">
+                    <div class="circle"></div>
+                </div>
+                <div class="gap-patch">
+                    <div class="circle"></div>
+                </div>
+                <div class="circle-clipper right">
+                    <div class="circle"></div>
+                </div>
+            </div>
+        </div>
+    </template>
+</dom-module>
+
+<script>
+Polymer({
+    is: "preloader-element",
+    ready: function() {
+    },
+    preloaderSize: function(size) {
+        return 'preloader-wrapper ' + size + ' active';
+    },
+    preloaderColor: function(color) {
+        return 'spinner-layer ' + color;
+    }
+});
+</script>

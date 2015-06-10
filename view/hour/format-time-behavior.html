@@ -1,0 +1,61 @@
+<script>
+    FormatTimeBehavior = {
+        twoDigit: function (number) {
+           return (number < 10 ? '0' : '') + number;
+        },
+
+        secondsToTime: function(secs) {
+            var hours = Math.floor(secs / (60 * 60));
+
+            var divisor_for_minutes = secs % (60 * 60);
+            var minutes = Math.floor(divisor_for_minutes / 60);
+
+            var divisor_for_seconds = divisor_for_minutes % 60;
+            var seconds = Math.ceil(divisor_for_seconds);
+
+            var obj = {
+                "h": hours,
+                "m": minutes,
+                "s": seconds
+            };
+            return obj;
+        },
+
+        timeToSeconds: function (h, m) {
+            return parseInt(h)*3600 + parseInt(m)*60;
+        },
+
+        secondsToTimeString: function(secs) {
+            var obj = this.secondsToTime(secs);
+            return this.twoDigit(obj.h) + ':' + this.twoDigit(obj.m);
+        },
+
+        getHour: function(secs) {
+            var obj = this.secondsToTime(secs);
+            return this.twoDigit(obj.h);
+        },
+
+        getMinute: function(secs) {
+            var obj = this.secondsToTime(secs);
+            return this.twoDigit(obj.m);
+        },
+
+        getHourSelected: function(secs, hour) {
+            var obj = this.secondsToTime(secs);
+            return (obj.h === hour);
+        },
+
+        getHourRange: function(from, to) {
+            var range = new Array(),
+                h1 = this.secondsToTime(from).h,
+                h2 = this.secondsToTime(to).h;
+            var diff = h2 - h1;
+            if (diff < 0)
+                return range;
+            for (var i = h1; i <= h2; i++)
+                range.push(i);
+            return range;
+        }
+
+    };
+</script>

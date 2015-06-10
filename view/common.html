@@ -1,0 +1,236 @@
+<script>
+    CommonBehavior = {
+
+        firebaseObj: function() {
+            var rootRef = new Firebase(firebaseMain);
+            var roomsRef = rootRef.child("rooms");
+            var schedulesRef = rootRef.child("schedules");
+            return {
+                rootRef : rootRef,
+                roomsRef : roomsRef,
+                schedulesRef : schedulesRef
+            };
+        },
+
+        checkBusyRoom: function() {
+            var rootRef = new Firebase(firebaseMain);
+            var roomsRef = rootRef.child("rooms");
+            var schedulesRef = rootRef.child("schedules");
+
+            schedulesRef.once('value', function(scheduleSnapshot) {
+                roomsRef.once('value', function(roomSnapshot) {
+                    roomSnapshot.forEach(function(childRoomSnapshot) {
+                        var roomId = childRoomSnapshot.key();
+                        var roomName = childRoomSnapshot.val().name;
+                        var status = 0;
+                        scheduleSnapshot.forEach(function(childScheduleSnapshot) {
+                            var scheduleData = childScheduleSnapshot.val();
+                            if (scheduleData.status && scheduleData.room_id == roomId) {
+                                return status = 1;
+                            }
+                        });
+                        roomsRef.child(roomId).update({
+                            name: roomName,
+                            status: status
+                        });
+                    });
+                });
+            });
+        },
+
+        createNewSchedule: function(obj, key, roomId, roomName, from, to, selfSchedule) {
+            var _this = this;
+
+            var rootRef = new Firebase(firebaseMain);
+            var roomsRef = rootRef.child("rooms");
+            var schedulesRef = rootRef.child("schedules");
+
+            if (obj.from == from && obj.to == to) {
+                schedulesRef.child(key).update(obj, function(error) {
+                    var err = null;
+                    if (error) {
+                        err = "Data could not be saved." + error;
+                    } else {
+                        err = "Event [" + obj.title +"] saved successfully.";
+                        _this.resampleSchedule(roomId, roomName, selfSchedule);
+                    }
+                    Materialize.toast(err, 3000);
+                });
+            } else if (obj.from == from && obj.to < to) {
+                schedulesRef.child(key).update({
+                    title: '',
+                    from: (obj.to + 60),
+                    to: to,
+                    room_id: roomId,
+                    room_name: roomName,
+                    status: 1
+                }, function(error) {
+                    var err = null;
+                    if (error) {
+                        err = "Data could not be saved." + error;
+                        Materialize.toast(err, 3000);
+                    } else {
+                        schedulesRef.push(obj, function(error) {
+                            var err = null;
+                            if (error) {
+                                err = "Data could not be saved." + error;
+                            } else {
+                                err = "Event [" + obj.title +"] saved successfully.";
+                                _this.resampleSchedule(roomId, roomName, selfSchedule);
+                            }
+                            Materialize.toast(err, 3000);
+                        });
+                    }
+                });
+            } else if (obj.from > from && obj.to == to) {
+                schedulesRef.child(key).update({
+                    title: '',
+                    from: from,
+                    to: obj.from - 60,
+                    room_id: roomId,
+                    room_name: roomName,
+                    status: 1
+                }, function(error) {
+                    var err = null;
+                    if (error) {
+                        err = "Data could not be saved." + error;
+                        Materialize.toast(err, 3000);
+                    } else {
+                        schedulesRef.push(obj, function(error) {
+                            var err = null;
+                            if (error) {
+                                err = "Data could not be saved." + error;
+                            } else {
+                                err = "Event [" + obj.title +"] saved successfully.";
+                                _this.resampleSchedule(roomId, roomName, selfSchedule);
+                            }
+                            Materialize.toast(err, 3000);
+                        });
+                    }
+                });
+            } else if (obj.from > from && obj.to < to) {
+                schedulesRef.child(key).update({
+                    title: '',
+                    from: from,
+                    to: obj.from - 60,
+                    room_id: roomId,
+                    room_name: roomName,
+                    status: 1
+                }, function(error) {
+                    var err = null;
+                    if (error) {
+                        err = "Data could not be saved." + error;
+                        Materialize.toast(err, 3000);
+                    } else {
+                        schedulesRef.push({
+                            title: '',
+                            from: (obj.to + 60),
+                            to: to,
+                            room_id: roomId,
+                            room_name: roomName,
+                            status: 1
+                        }, function(error) {
+                            var err = null;
+                            if (error) {
+                                err = "Data could not be saved." + error;
+                                Materialize.toast(err, 3000);
+                            } else {
+                                schedulesRef.push(obj, function(error) {
+                                    var err = null;
+                                    if (error) {
+                                        err = "Data could not be saved." + error;
+                                    } else {
+                                        err = "Event [" + obj.title +"] saved successfully.";
+                                        _this.resampleSchedule(roomId, roomName, selfSchedule);
+                                    }
+                                    Materialize.toast(err, 3000);
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        },
+        removeSchedule: function(key, roomId, roomName, from, to, title, selfSchedule) {
+            var _this = this;
+            var rootRef = new Firebase(firebaseMain);
+            var roomsRef = rootRef.child("rooms");
+            var schedulesRef = rootRef.child("schedules");
+            schedulesRef.child(key).update({
+                title: '',
+                from: from,
+                to: to,
+                room_id: roomId,
+                room_name: roomName,
+                status: 1
+            }, function(error) {
+                var err = null;
+                if (error) {
+                    err = "Data could not be deleted." + error;
+                } else {
+                    err = "Event [" + title +"] deleted successfully.";
+                    _this.resampleSchedule(roomId, roomName, selfSchedule);
+                }
+                Materialize.toast(err, 3000);
+            });
+        },
+        resampleSchedule: function(roomId, roomName, selfSchedule) {
+            var rootRef = new Firebase(firebaseMain);
+            var roomsRef = rootRef.child("rooms");
+            var schedulesRef = rootRef.child("schedules");
+            schedulesRef.orderByChild("from").once('value', function(scheduleSnapshot) {
+                var updateObj = {
+                    title: '',
+                    from: 0,
+                    to: 0,
+                    room_id: roomId,
+                    room_name: null,
+                    status: 1
+                }
+                var updateKey = null;
+                var removeKey = new Array();
+                var statusOfRoom = 0;
+                scheduleSnapshot.forEach(function(childScheduleSnapshot) {
+                    var key = childScheduleSnapshot.key();
+                    var scheduleData = childScheduleSnapshot.val();
+                    if (scheduleData.status && scheduleData.room_id == roomId) {
+                        statusOfRoom = 1;
+                        if (updateObj.to == 0) {
+                            updateObj.room_name = scheduleData.room_name;
+                            updateObj.from = scheduleData.from;
+                            updateObj.to = scheduleData.to;
+                            updateKey = key;
+                        } else if (updateObj.to == (scheduleData.from - 60)) {
+                            updateObj.to = scheduleData.to;
+                            schedulesRef.child(updateKey).update(updateObj, function(error) {
+                                var err = null;
+                                if (error) {
+                                    err = "Could not re-sample." + error;
+                                } else {
+                                    err = "Re-sample records successfully.";
+                                    setTimeout(function() {
+                                        schedulesRef.child(key).remove();
+                                        setTimeout(function() {
+                                            selfSchedule.$.resultList.render();
+                                        }, 200);
+                                    }, 100);
+                                }
+                                Materialize.toast(err, 3000);
+                            });
+                        } else {
+                            updateObj.room_name = scheduleData.room_name;
+                            updateObj.from = scheduleData.from;
+                            updateObj.to = scheduleData.to;
+                            updateKey = key;
+                        }
+                    }
+                });
+                roomsRef.child(roomId).update({
+                    name: roomName,
+                    status: statusOfRoom
+                });
+            });
+        }
+
+    };
+</script>

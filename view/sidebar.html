@@ -1,0 +1,122 @@
+<dom-module id="sidebar-element">
+    <template>
+        <more-route id="roomContext" context name="room" params="{{params}}"></more-route>
+        <more-route id="roomRoute" name="room"></more-route>
+        <template  is="dom-if" if="[[!isMobile]]">
+            <firebase-collection
+                location="{{ fbRooms }}"
+                data="{{ rooms }}">
+            </firebase-collection>
+        </template>
+        <ul id="{{sidebarId}}" class$="{{classSidebar(isMobile)}}">
+            <li class="collection-header">
+                <h5>Meeting Room</h5>
+            </li>
+            <template is="dom-repeat" items="{{ rooms }}" as="room">
+                <a href$="[[routeRoom(room.__firebaseKey__)]]" class="collection-item" on-tap="_onRoomTapped" room-id$="[[room.__firebaseKey__]]" room-name$="[[room.name]]">
+                    <span>[[room.name]]</span>
+                    <span class$="[[classRoomStatus(room.status)]]">[[labelRoomStatus(room.status)]]</span>
+                </a>
+            </template>
+            <li hidden$="[[!isFetching]]" class="center-align padding-top-bottom-10">
+                <preloader-element size="small" color="spinner-blue-only"></preloader-element>
+            </li>
+        </ul>
+    </template>
+</dom-module>
+
+<script>
+Polymer({
+    is: "sidebar-element",
+    ready: function() {
+    },
+    properties: {
+        isMobile: {
+            type: Number,
+            value: 0
+        },
+        sidebarId: String,
+        fbRooms: {
+            type: String,
+            value: firebaseRooms
+        },
+        isFetching: {
+            type: Boolean,
+            value: true
+        },
+        rooms: {
+            type:   Object,
+            notify: true,
+        },
+        currentRoom: {
+            type:   Object,
+            notify: true,
+        }
+    },
+    observers: [
+        'roomsAddedOrRemoved(rooms.splices)'
+    ],
+    reassignCurrentRoom: function(newRoom) {
+      this.set('currentRoom', newRoom);
+    },
+    roomsAddedOrRemoved: function(changeRecord) {
+        if (typeof changeRecord == 'undefined') return;
+        changeRecord.indexSplices.forEach(function(s) {
+            s.removed.forEach(function(obj) {
+                // console.log('Room obeserver: ' + obj + ' room was removed');
+            });
+            // console.log('Room obeserver: ' + s.addedCount + ' room were added');
+        }, this);
+        this.isFetching = false;
+        if (typeof this.params.roomId !== 'undefined') {
+            var roomId = this.$.roomContext.params.roomId;
+            var self = this;
+            this.rooms.forEach(function(room) {
+                if (roomId == room.__firebaseKey__) {
+                    self.reassignCurrentRoom(room);
+                    return;
+                }
+            });
+        }
+    },
+    classSidebar: function(isMobile) {
+        var classes = 'collection with-header';
+        var space = ' ';
+        if (!isMobile) {
+            return classes + space + 'hide-on-small-only';
+        }
+        return classes +  space + 'side-nav';
+    },
+    classRoomStatus: function(status) {
+        var classes = 'badge label';
+        var space = ' ';
+        if (status) {
+            return classes + space + 'blue darken-4';
+        }
+        return classes +  space + 'red';
+    },
+    labelRoomStatus: function(status) {
+        var free = 'Free';
+        var busy = 'Busy';
+        if (status) {
+            return free;
+        }
+        return busy;
+    },
+    routeRoom:  function(key) {
+        return '#!/room/' + key;
+    },
+    _onRoomTapped: function(event) {
+        var roomId = event.currentTarget.getAttribute('room-id');
+        var roomName = event.currentTarget.getAttribute('room-name');
+        this.currentRoom = {
+            key: roomId,
+            name: roomName
+        };
+        // One way to navigate to a route is to call the `navigateTo` helper on.
+        // more-route element that references it:
+        this.$.roomRoute.navigateTo({roomId: roomId});
+        event.stopPropagation();
+    }
+});
+</script>

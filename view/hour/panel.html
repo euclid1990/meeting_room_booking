@@ -1,0 +1,34 @@
+<dom-module id="hour-panel-element">
+    <template>
+        <div class="panel">
+            <div class="panel-title">
+                <blockquote hidden$="[[!params.roomId.length]]">
+                    <span class="schedule-room-name" hidden$="[[!isFetching]]">
+                        Loading ...
+                    </span>
+                    <span class="schedule-room-name" hidden$="[[isFetching]]">[[currentRoom.name]]</span>
+                </blockquote>
+                <blockquote hidden$="[[params.roomId]]">
+                    <span class="schedule-room-name" hidden$="[[!isFetching]]">
+                        Loading ...
+                    </span>
+                    <span class="schedule-room-name" hidden$="[[isFetching]]">All rooms</span>
+                </blockquote>
+            </div>
+            <content></content>
+        </div>
+        <div hidden$="[[!isFetching]]">
+            <div class="progress">
+                <div class="indeterminate lime"></div>
+            </div>
+        </div>
+    </template>
+</dom-module>
+
+<script>
+Polymer({
+    is: "hour-panel-element",
+    ready: function() {
+    }
+});
+</script>

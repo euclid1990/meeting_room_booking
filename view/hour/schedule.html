@@ -1,0 +1,386 @@
+<link rel="import" href="../common.html">
+<link rel="import" href="format-time-behavior.html">
+<link rel="import" href="panel.html">
+
+<dom-module id="hour-schedule-element">
+    <template>
+        <more-route context name="room" params="{{params}}"></more-route>
+        <firebase-collection
+            id="firebaseSchedulesId"
+            location="{{fbSchedules}}"
+            data="{{schedules}}"
+            order-by-child="room_id"
+            equal-to="{{params.roomId}}">
+        </firebase-collection>
+
+        <!-- Modal Structure -->
+        <div id="confirmDelete" class="modal">
+            <div class="modal-content">
+                <h4>Are you sure to delete this item ?</h4>
+                <p class="event-name orange-text text-darken-4"></p>
+            </div>
+            <div class="modal-footer">
+                <a class="yesDelete modal-action modal-close waves-effect waves-green btn red">Yes</a>
+            </div>
+        </div>
+
+        <hour-panel-element
+            is-fetching="[[isFetching]]"
+            params="[[params]]"
+            current-room="[[currentRoom]]"
+            search-string="{{ searchString }}">
+            <div class="panel-search">
+                <nav class="white search-nav">
+                    <div class="nav-wrapper">
+                        <div class="input-field">
+                        <input id="search" type="search" value="{{ searchString::input }}" placeholder="Enter keyword ...">
+                            <label for="search"><i class="red-text lighten-2-text mdi-action-search"></i></label>
+                            <i class="mdi-navigation-close"></i>
+                        </div>
+                    </div>
+                </nav>
+            </div>
+        </hour-panel-element>
+
+        <ul id="[[scheduleList]]" class="collapsible popout" data-collapsible="accordion">
+            <template id="resultList" is="dom-repeat" items="{{ schedules }}" filter="filterEntries" sort="sortEntries" as="schedule" index-as="scheduleId" render>
+
+                <!-- Busy Time -->
+                <template is="dom-if" if="[[!getBooleanBusy(schedule.status)]]" restamp="true">
+                    <li hidden="[[getBooleanBusy(schedule.status)]]">
+                        <div class="collapsible-header">
+
+                            <div class="schedule-header">
+                                <div class="time">
+                                    <i class="red-text mdi-notification-event-busy"></i>
+                                    <span class="header-time">Time:</span> <span>[[ secondsToTimeString(schedule.from) ]]</span> ~ <span>[[ secondsToTimeString(schedule.to) ]]</span>
+                                </div>
+                                <div class="event">
+                                    <span class="header-event">Event:</span> <span>[[ schedule.title ]]</span>
+                                </div>
+                                <div class="room">
+                                    <span class="header-room">Room:</span> <span>[[ schedule.room_name ]]</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapsible-body">
+                            <p class="left">[[ schedule.title ]]</p>
+                            <p class="right">
+                                <a title ="Remove" class="btn-floating waves-effect waves-light red"
+                                    on-tap="_onRemoveTapped"
+                                    schedule-id$="[[ scheduleId ]]"
+                                    room-id$="[[ schedule.room_id ]]"
+                                    room-name$="[[ schedule.room_name ]]"
+                                    key$="[[ schedule.__firebaseKey__ ]]"
+                                    from$="[[ schedule.from ]]"
+                                    to$="[[ schedule.to ]]"
+                                    stitle$="[[ schedule.title ]]">
+                                    <i class="mdi-navigation-close"></i>
+                                </a>
+                            </p>
+                        </div>
+                    </li>
+                </template>
+
+                <!-- Free Time -->
+                <template is="dom-if" if="[[getBooleanFree(schedule.status)]]" restamp="true">
+                    <li id="[[ scheduleId ]]" hidden="[[!getBooleanFree(schedule.status)]]">
+                        <div class="collapsible-header">
+                            <div class="schedule-header">
+                                <div class="time">
+                                    <i class="blue-text text-darken-4 mdi-notification-event-available"></i>
+                                    <span class="header-time">Time:</span> <span>[[ secondsToTimeString(schedule.from) ]]</span> ~ <span>[[ secondsToTimeString(schedule.to) ]]</span>
+                                </div>
+                                <div class="event">
+                                    <span class="header-event">Event:</span> <span>[[ schedule.title ]]</span>
+                                </div>
+                                <div class="room">
+                                    <span class="header-room">Room:</span> <span>[[ schedule.room_name ]]</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapsible-body">
+                            <div class="row time-picker">
+                                <div class="input-field col s12">
+                                  <i class="mdi-notification-event-note prefix"></i>
+                                  <input id$="[[ formTitle ]]" type="text" class="validate" maxlength="60" value="">
+                                  <label for="icon_prefix">Enter event name</label>
+                                </div>
+                                <div class="col s6 m2 select-hour">
+                                    <label>From</label>
+                                    <select id$="[[ formHourFrom ]]" class="browser-default">
+                                        <option value="" disabled>Choose hour</option>
+                                        <template is="dom-repeat" items="{{ getHourRange(schedule.from, schedule.to) }}" as="hour">
+                                            <template is="dom-if" if$="[[getHourSelected(schedule.from, hour)]]" restamp="true">
+                                                <option value="[[hour]]" selected>[[ twoDigit(hour) ]]</option>
+                                            </template>
+                                            <template is="dom-if" if$="[[!getHourSelected(schedule.from, hour)]]" restamp="true">
+                                                <option value="[[hour]]">[[ twoDigit(hour) ]]</option>
+                                            </template>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="col s6 m3 select-minute">
+                                    <label>Minute</label>
+                                    <p class="range-field select-minute padding-top-none">
+                                        <input id$="[[ formMinuteFrom ]]" type="range" min="0" max="59" value$="[[getMinute(schedule.from)]]"/>
+                                    </p>
+                                </div>
+
+                                <div class="col m1 hide-on-small-only">
+                                    <p class="icon-range">
+                                        <i class="mdi-action-settings-ethernet"></i>
+                                    </p>
+                                </div>
+
+                                <div class="col s6 m2 select-hour">
+                                    <label>To</label>
+                                    <select id$="[[ formHourTo ]]" class="browser-default">
+                                        <option value="" disabled>Choose hour</option>
+                                        <template is="dom-repeat" items="{{ getHourRange(schedule.from, schedule.to) }}" as="hour">
+                                            <template is="dom-if" if$="[[getHourSelected(schedule.to, hour)]]" restamp="true">
+                                                <option value="[[hour]]" selected>[[ twoDigit(hour) ]]</option>
+                                            </template>
+                                            <template is="dom-if" if$="[[!getHourSelected(schedule.to, hour)]]" restamp="true">
+                                                <option value="[[hour]]">[[ twoDigit(hour) ]]</option>
+                                            </template>
+                                        </template>
+                                    </select>
+                                </div>
+                                <div class="col s6 m3 select-minute">
+                                    <label>Minute</label>
+                                    <p class="range-field select-minute padding-top-none">
+                                        <input id$="[[ formMinuteTo ]]" type="range" min="0" max="59" value$="[[getMinute(schedule.to)]]"/>
+                                    </p>
+                                </div>
+                            </div>
+                            <p class="center-align padding-top-none">
+                                <a title ="Add" class="btn-floating btn-large waves-effect waves-light blue darken-4"
+                                    on-tap="_onSubmitTapped"
+                                    schedule-id$="[[ scheduleId ]]"
+                                    room-id$="[[ schedule.room_id ]]"
+                                    room-name$="[[ schedule.room_name ]]"
+                                    key$="[[ schedule.__firebaseKey__ ]]"
+                                    from$="[[ schedule.from ]]"
+                                    to$="[[ schedule.to ]]"><i class="mdi-content-add"></i></a>
+                            </p>
+                        </div>
+                    </li>
+                </template>
+
+            </template>
+        </ul>
+    </template>
+</dom-module>
+
+<script>
+Polymer({
+    is: "hour-schedule-element",
+    behaviors: [
+        CommonBehavior,
+        FormatTimeBehavior
+    ],
+    ready: function() {
+    },
+    properties: {
+        schedules: {
+            type: Object,
+            notify: true,
+            observer: 'schedulesChanged'
+        },
+        fbSchedules: {
+            type: String,
+            value: firebaseSchedules
+        },
+        currentRoom: {
+            type:   Object,
+            notify: true,
+        },
+        rooms: {
+            type:   Object,
+            notify: true,
+        },
+        isFetching: {
+            type: Boolean,
+            value: true
+        },
+        scheduleList: {
+            type: String,
+            value: 'scheduleList'
+        },
+        formTitle: {
+            type: String,
+            value: 'formTitle'
+        },
+        formHourFrom: {
+            type: String,
+            value: 'formHourFrom'
+        },
+        formMinuteFrom: {
+            type: String,
+            value: 'formMinuteFrom'
+        },
+        formHourTo: {
+            type: String,
+            value: 'formHourTo'
+        },
+        formMinuteTo: {
+            type: String,
+            value: 'formMinuteTo'
+        },
+        searchString: {
+            type: String,
+            value: '',
+            observer: 'refreshFilter'
+        }
+    },
+    observers: [
+        'schedulesAddedOrRemoved(schedules.splices)'
+    ],
+    schedulesChanged: function(newValue, oldValue) {
+        // console.log("Schedule changed: " + new Date());
+        // console.log("Schedule newValue: " + newValue);
+    },
+    addSchedules: function(key) {
+        this.push('schedules', morningSchedule(key));
+        this.push('schedules', afternoonSchedule(key));
+    },
+    schedulesAddedOrRemoved: function(changeRecord) {
+        if (typeof changeRecord == 'undefined') return;
+        changeRecord.indexSplices.forEach(function(s) {
+            s.removed.forEach(function(obj) {
+                // console.log('Schedule obeserver: ' + obj + ' schedule was removed');
+            });
+            // console.log('Schedule obeserver: ' + s.addedCount + ' schedule were added');
+        }, this);
+        this.isFetching = false;
+        setTimeout(function() {
+            $('.collapsible').collapsible();
+        }, 100);
+    },
+    getBooleanBusy: function(status) {
+        if (typeof(status) === 'undefined') {
+            return true;
+        }
+        if (status === 1)
+            return true;
+        return false;
+    },
+    getBooleanFree: function(status) {
+        if (typeof(status) === 'undefined') {
+            return false;
+        }
+        if (status === 1)
+            return true;
+        return false;
+    },
+    setSelected: function(a, b) {
+        return (a === b);
+    },
+    filterEntries: function(schedule) {
+        if (this.searchString.length) {
+            return schedule.room_id == this.searchString ||
+                   (schedule.title.toLowerCase().indexOf(this.searchString.toLowerCase()) > -1) ||
+                   (schedule.room_name.toLowerCase().indexOf(this.searchString.toLowerCase()) > -1);
+        }
+        return true;
+    },
+    refreshFilter: function() {
+        this.$.resultList.render();
+        setTimeout(function() {
+            $('.collapsible').collapsible();
+        }, 100);
+    },
+    sortEntries: function (a,b) {
+        if ((typeof a != 'undefined') && (typeof b != 'undefined'))
+            return a.from - b.from;
+        return false;
+    },
+    validation: function(title, hFrom, hTo, mFrom, mTo, originFrom, originTo) {
+        var err = null;
+        if (!title.length) {
+            err = "Please input [Event Name] before continuing";
+            Materialize.toast(err, 3000);
+            return false;
+        }
+        if (isNaN(hFrom) || isNaN(hTo) || isNaN(mFrom) || isNaN(mTo) ||
+                hFrom === null || hTo === null || mFrom === null || mTo === null) {
+            err = "Please select [hour] and [minute] before continuing";
+            Materialize.toast(err, 3000);
+            return false;
+        }
+        var from = this.timeToSeconds(hFrom, mFrom),
+            to = this.timeToSeconds(hTo, mTo);
+        if (from >= to) {
+            err = "The [From] time must be before [To] time";
+            Materialize.toast(err, 3000);
+            return false;
+        }
+        // console.log(originFrom < from);
+        if (originFrom > from || originTo < to) {
+            err = "The [From] time && [To] time must beweent " + this.secondsToTimeString(originFrom) + ' ~ ' + this.secondsToTimeString(originTo) ;
+            Materialize.toast(err, 3000);
+            console.log(this.secondsToTimeString(from) + ' ~ ' + this.secondsToTimeString(to));
+            return false;
+        }
+        return true;
+    },
+    _onSubmitTapped: function(event) {
+        var scheduleId = event.currentTarget.getAttribute('schedule-id'),
+            roomId = event.currentTarget.getAttribute('room-id'),
+            roomName = event.currentTarget.getAttribute('room-name'),
+            key = event.currentTarget.getAttribute('key'),
+            from = parseInt(event.currentTarget.getAttribute('from')),
+            to = parseInt(event.currentTarget.getAttribute('to'));
+
+        var hFrom = $('#' + this.scheduleList + ' #' + scheduleId + ' #' + this.formHourFrom).val(),
+            hTo = $('#' + this.scheduleList + ' #' + scheduleId + ' #' + this.formHourTo).val(),
+            mFrom = $('#' + this.scheduleList + ' #' + scheduleId + ' #' + this.formMinuteFrom).val(),
+            mTo = $('#' + this.scheduleList + ' #' + scheduleId + ' #' + this.formMinuteTo).val(),
+            title = $('#' + this.scheduleList + ' #' + scheduleId + ' #' + this.formTitle).val();
+
+        event.currentTarget.getAttribute('disabled', true);
+
+        var self = this;
+
+        if (!self.validation(title, hFrom, hTo, mFrom, mTo, from, to))
+            return false;
+
+        var obj = {
+            title: title,
+            from: self.timeToSeconds(hFrom, mFrom),
+            to: self.timeToSeconds(hTo, mTo),
+            room_id: roomId,
+            room_name: roomName,
+            status: 0
+        };
+
+        self.createNewSchedule(obj, key, roomId, roomName, from, to, self);
+
+        event.stopPropagation();
+    },
+    _onRemoveTapped: function(event) {
+        var scheduleId = event.currentTarget.getAttribute('schedule-id'),
+            title = event.currentTarget.getAttribute('stitle'),
+            roomId = event.currentTarget.getAttribute('room-id'),
+            roomName = event.currentTarget.getAttribute('room-name'),
+            key = event.currentTarget.getAttribute('key'),
+            from = parseInt(event.currentTarget.getAttribute('from')),
+            to = parseInt(event.currentTarget.getAttribute('to'));
+        var self = this;
+
+        $('#confirmDelete').openModal({
+            ready: function() {
+                $('#confirmDelete .event-name').html('<i class="red-text text-accent-2 mdi-maps-local-florist"></i> ' + title);
+                $('#confirmDelete .yesDelete').on('click', function(event) {
+                    event.stopPropagation();
+                    self.removeSchedule(key, roomId, roomName, from, to, title, self);
+                    $('#confirmDelete').closeModal();
+                })
+            },
+        });
+
+        event.stopPropagation();
+    }
+});
+</script>

@@ -1,0 +1,78 @@
+<link rel="import" href="./common.html">
+<dom-module id="navigation-element">
+    <template>
+        <div class="navbar-fixed">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="/meeting_room_booking" class="brand-logo center">BOOKING</a>
+                        <ul class="right">
+                            <li>
+                                <a id="reset" title="Reset all data" href="/meeting_room_booking/#!/room/" on-tap="_onResetTapped">
+                                    <i class="mdi-action-history"></i>
+                                </a>
+                            </li>
+                        </ul>
+                        <a href="#" data-activates="sidebar-mobile" class="button-collapse hide-on-med-and-up"><i class="mdi-navigation-menu"></i></a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </template>
+</dom-module>
+
+<script>
+Polymer({
+    is: "navigation-element",
+    behaviors: [
+        CommonBehavior
+    ],
+    _onResetTapped: function(event) {
+        if ($('#reset').hasClass('disabled')) {
+            return false;
+        }
+        var rootRef = new Firebase(firebaseMain);
+        var roomsRef = rootRef.child("rooms");
+        var schedulesRef = rootRef.child("schedules");
+
+        var initDatabase = function() {
+            rootRef.remove(setDefaultRooms);
+        };
+
+        var setDefaultRooms = function(error) {
+            if (error) {
+                // console.log('Synchronization failed');
+            } else {
+                // console.log('Synchronization succeeded');
+                var roomNames = ['America', 'Euro', 'Asia'];
+                for (var i in roomNames) {
+                    var roomObject = null;
+                    var status = 1;
+                    var title = '';
+                    if (i === '0')
+                        status = 0;
+                    roomObject = roomsRef.push({
+                        name: roomNames[i],
+                        status: status,
+                    });
+                    if (i === '0')
+                        title = 'Backend as a Service (BaaS): Firebase';
+                    schedulesRef.push(morningSchedule(roomObject.key(), roomNames[i], title, status));
+                    if (i === '0')
+                        title = 'Javascript Seminar: Shadow Dom vs Virtual Dom';
+                    schedulesRef.push(afternoonSchedule(roomObject.key(), roomNames[i], title, status));
+                }
+            }
+        };
+        $('#reset').toggleClass('disabled');
+
+        initDatabase();
+
+        setTimeout(function() {
+            $('#reset').toggleClass('disabled');
+        }, 500)
+
+        event.stopPropagation();
+    }
+});
+</script>
